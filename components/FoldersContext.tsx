@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 
+import { Alert } from 'react-native';
+
 type Image = { id: string; imageUrl: string; isFavorite?: boolean };
 
 // 👇 FIXED: Folder is an OBJECT with images array and color
@@ -13,7 +15,7 @@ type Folders = { [folderId: string]: Folder };
 
 interface FoldersContextProps {
   folders: Folders;
-  addFolder: (id: string, color?: string) => void;
+  addFolder: (id: string, color?: string) => boolean;
   addImage: (folderId: string, image: Image) => void;
   removeImage: (folderId: string, imageId: string) => void;
   reorderImages: (folderId: string, newOrder: Image[]) => void;
@@ -21,8 +23,9 @@ interface FoldersContextProps {
   removeFolder: (folderId: string) => void;
   createFolder: (folderId: string) => void;
   addFolderColor: (folderId: string, color: string) => void;
+  changeName: (folderId: string, newId: string) => void;
 }
-  51
+
 const FoldersContext = createContext<FoldersContextProps | undefined>(undefined);
 
 export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -50,6 +53,24 @@ export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const addFolder = (id: string, color: string) => {
+
+    const FOLDER_LIMIT = 5;     
+
+    const folderCount =  Object.keys(folders)
+    .filter(id => id !== 'Favorites')
+    .length
+
+
+    if (folderCount >= FOLDER_LIMIT){
+      console.log(`Maximum folders reached -- Log `);
+      Alert.alert('Folder Limit Reached', `You can only create ${FOLDER_LIMIT} folders. Delete a folder to create a new one.`);
+      return false;
+    }
+
+
+
+
+
     setFolders(prev => prev[id] ? prev : { 
       ...prev, 
       [id]: { 
@@ -58,6 +79,7 @@ export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
       } 
     });
+    return true; 
   };
  
 
@@ -83,7 +105,7 @@ export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // 👇 FIXED: addImage function for new structure
-  const addImage = (folderId: string, image: Image) => {
+  const addImage = (folderId: string, image: Image) => {    
     setFolders(prev => {
       const folder = prev[folderId];
       
@@ -233,7 +255,24 @@ export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // 👇 FIXED: createFolder function for new structure
-  const createFolder = (folderId: string) => {
+  const createFolder = (folderId: string, color: string) => {
+    
+      const FOLDER_LIMIT = 5;     
+
+      const folderCount =  Object.keys(folders)
+      .filter(id => id !== 'Favorites')
+      .length
+
+
+      if (folderCount >= FOLDER_LIMIT){
+        console.log(`Maximum folders reached -- Log `);
+        Alert.alert('Folder Limit Reached', `You can only create ${FOLDER_LIMIT} folders. Delete a folder to create a new one.`);
+        return false;
+      }
+
+
+
+
     setFolders(prev => {
       if (prev[folderId]) {
         console.log(`Folder "${folderId}" already exists`);
@@ -248,18 +287,37 @@ export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       };
     });
+    return true; 
   };
 
-  // const changeName = (folderId: string) => {
-  //   setFolders(prev => prev[folderId] ? prev : { 
-  //       ...prev, 
-  //       [folderId]: { 
-  //         images: [], 
-  //         color: color 
-     
-  //       } 
-  //     });
-  // };
+  const changeName = (folderId: string, newId: string) => {
+
+    setFolders(prev => {
+      
+      if (prev[newId]){
+        console.log(`Folder "${newId}" already exists`)
+        return prev
+      };
+    
+      if (!prev[folderId]) {
+        console.log(`Folder "${folderId}" does not exist`)
+        return prev
+    
+      };
+
+      const folderToRename = prev[folderId];
+
+
+      const { [folderId]: _, ...rest } = prev;
+
+      return{
+        ...rest,
+         [newId]: folderToRename
+
+      }
+  
+      });
+  };
 
   return (
     <FoldersContext.Provider value={{ 
@@ -271,7 +329,8 @@ export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ child
       reorderImages,
       removeFolder,
       createFolder,
-      addFolderColor
+      addFolderColor,
+      changeName
     }}>
       {children}
     </FoldersContext.Provider>

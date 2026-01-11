@@ -1,6 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system'; // 
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, FlatList, Image, Modal, Text, TouchableOpacity, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
@@ -21,6 +25,7 @@ const Details = () => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [draggedPosition, setDraggedPosition] = useState({ x: 0, y: 0 });
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const { folders, addImage, toggleFavorite, removeImage, reorderImages } = useFolders();
   const folder = folders[id];
@@ -94,7 +99,97 @@ const Details = () => {
 
 
 
+  // Handle Download for single Image
 
+  const handleDownload =  async () => {
+
+    try {
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Error', "Access wasn't granted!" )
+      return;
+    }
+
+    const imageUrl = images[currentIndex].imageUrl;
+
+    const fileName = `meme_${Date.now()}.jpg`;
+
+    const fileUri = FileSystem.documentDirectory + fileName;
+
+    const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
+
+    const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+
+    Alert.alert('Success!', 'Meme saved to Photos');
+
+  } catch (error) {
+    console.error('Download error:', error);
+    Alert.alert('Error', 'Failed to download meme');
+  };
+
+  };
+
+
+  const handleShareOptions = async () => {
+
+    try{
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Error', "Access wasn't granted!" )
+        return;
+      }
+
+
+    const imageUrl = images[currentIndex].imageUrl;
+
+    const fileName = `meme_${Date.now()}.jpg`;
+
+    const fileUri = FileSystem.documentDirectory + fileName;
+
+    
+    const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
+
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (!isAvailable) {
+      Alert.alert('Error', 'Sharing is not available on this device');
+      return;
+    }
+
+    await Sharing.shareAsync(downloadResult.uri)
+
+    setShowShareModal(false);
+
+      
+
+
+
+
+
+    } catch (error) {
+      console.error('Share error:', error);
+      Alert.alert('Error', 'Failed to share meme');
+    };
+
+  };
+
+
+  const handleCopyToClipboard = async () => {
+  try {
+    const imageUrl = images[currentIndex].imageUrl;
+    
+    await Clipboard.setStringAsync(imageUrl);
+    
+    Alert.alert('Copied!', 'Image link copied to clipboard');
+    
+    setShowShareModal(false);
+
+  } catch (error) {
+    console.error('Copy error:', error);
+    Alert.alert('Error', 'Failed to copy link');
+  }
+};
 
 
   // Handle removing an image
@@ -232,7 +327,7 @@ const Details = () => {
   };
 
   return (
-    <View className="flex-1 bg-primary">
+    <View className="flex-1 bg-primary mt-5">
       {/* Header */}
       <View className="p-4">
         <Text className="text-white text-2xl font-bold">{name}</Text>
@@ -356,7 +451,10 @@ const Details = () => {
           />
 
           <View className="flex-row justify-around px-8 pb-8 pt-4">
-            <TouchableOpacity className="items-center">
+            <TouchableOpacity 
+            className="items-center"
+            onPress={() => setShowShareModal(true)}
+            >
               <Ionicons name="share-outline" size={32} color="white" />
               <Text className="text-white text-xs mt-2">Share</Text>
             </TouchableOpacity>
@@ -376,13 +474,80 @@ const Details = () => {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity className="items-center">
+            <TouchableOpacity className="items-center"
+            onPress={handleDownload}
+            
+            >
               <Ionicons name="download-outline" size={32} color="white" />
               <Text className="text-white text-xs mt-2">Export</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      
+
+
+
+
+      {/* Sharing Modal */}
+      
+      <Modal
+        visible={showShareModal}
+        transparent={true}
+        animationType="slide"  
+      >
+
+
+
+        <View
+        className='flex-1 bg-black/70 justify-center items-center'
+        
+        >
+          <View 
+          className='bg-gray-800 p-6 rounded-2xl w-[85%]'
+          >
+
+
+            <Text className='text-white text-xl font-bold mb-6 text-center'>
+              Share Meme
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleShareOptions}
+              className='bg-purple-500 p-4 rounded-lg mb-3 flex-row items-center justify-center'
+            >
+              <Ionicons name="share-social-outline" size={24} color="white" />
+              <Text className='text-white ml-3 font-semibold text-lg'>Share Image</Text>
+            </TouchableOpacity>
+
+            {/* Copy Link Option */}
+            <TouchableOpacity
+              onPress={handleCopyToClipboard}
+              className='bg-gray-700 p-4 rounded-lg mb-3 flex-row items-center justify-center'
+            >
+              <Ionicons name="copy-outline" size={24} color="white" />
+              <Text className='text-white ml-3 font-semibold text-lg'>Copy Link</Text>
+            </TouchableOpacity>
+
+            {/* Cancel */}
+            <TouchableOpacity
+              onPress={() => setShowShareModal(false)}
+              className='bg-gray-600 p-4 rounded-lg flex-row items-center justify-center'
+            >
+              <Text className='text-white font-semibold text-lg'>Cancel</Text>
+            </TouchableOpacity>
+
+
+          </View>
+
+
+        </View>
+        
+      </Modal>
+
+
+
     </View>
   );
 };

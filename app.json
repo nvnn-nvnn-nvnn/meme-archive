@@ -12,20 +12,21 @@
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.RECORD_AUDIO"
-      ],
-      "package": "com.veddveddvedd.memeify"
+    "adaptiveIcon": {
+      "backgroundColor": "#E6F4FE",
+      "foregroundImage": "./assets/images/android-icon-foreground.png",
+      "backgroundImage": "./assets/images/android-icon-background.png",
+      "monochromeImage": "./assets/images/android-icon-monochrome.png"
     },
+    "edgeToEdgeEnabled": true,
+    "predictiveBackGestureEnabled": false,
+    "permissions": [
+      "READ_EXTERNAL_STORAGE",
+      "WRITE_EXTERNAL_STORAGE",
+      "READ_MEDIA_IMAGES"
+    ],
+    "package": "com.veddveddvedd.memeify"
+  },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
@@ -49,8 +50,18 @@
         "expo-image-picker",
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends."
+        },
+        
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow MemeAresenal to access your photos.",
+          "savePhotosPermission": "Allow MemeAresenal to save photos.",
+          "isAccessMediaLocationEnabled": true
         }
       ]
+
     ],
     "experiments": {
       "typedRoutes": true,

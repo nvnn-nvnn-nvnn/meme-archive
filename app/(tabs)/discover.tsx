@@ -1,6 +1,16 @@
+import FolderSelectionModal from '@/components/FolderSelectionModal';
+import MemeDetailModal from '@/components/MemeDetailModal'; // Fixed typo: 'DetaiModal' → 'DetailModal'
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchRedditMemes, RedditPost } from '../../utils/redditAPI';
 
@@ -8,14 +18,23 @@ const MEME_SOURCES = [
   { name: 'Dank Memes', subreddit: 'dankmemes', icon: '🔥' },
   { name: 'Wholesome', subreddit: 'wholesomememes', icon: '💖' },
   { name: 'Classic', subreddit: 'memes', icon: '😂' },
-  { name: 'Reaction', subreddit: 'reactionmemes', icon: '卐'}
+  { name: 'Reaction', subreddit: 'reactionmemes', icon: '👀' },
+  { name: 'Couple Memes', subreddit: 'couplememes', icon: '💑' },
+  { name: 'Relationship Memes', subreddit: 'RelationshipMemes', icon: '😙' },
+  { name: 'Neo-Nazi Memes', subreddit: 'ForwardsFromKlandma', icon: '卐' }
 ];
 
 const Discover = () => {
+  // State for posts and loading
   const [selectedTab, setSelectedTab] = useState(0);
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // State for modals
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<RedditPost | null>(null);
 
   // Load memes when tab changes
   useEffect(() => {
@@ -36,67 +55,128 @@ const Discover = () => {
     setRefreshing(false);
   };
 
+  // Handlers for post interaction
+  const handleMemePress = (post: RedditPost) => {
+    setSelectedPost(post);
+    setShowDetailModal(true);
+  };
+
+  const handleSaveFromDetail = () => {
+    setShowDetailModal(false);
+    setShowFolderModal(true);
+    setShowDetailModal(true);
+  };
+
   const handleSaveToFolder = (post: RedditPost) => {
-    // TODO: Show modal to select folder and save image
-    console.log('Save to folder:', post.title);
+    setSelectedPost(post);
+    setShowFolderModal(true);
+  };
+
+  const handleFolderSelect = (folderId: string) => {
+    console.log(`Saving post ${selectedPost?.id} to folder ${folderId}`);
+    // Save logic is handled in the modal itself
   };
 
   const renderMemeCard = ({ item }: { item: RedditPost }) => (
-    <View className='bg-gray-800 rounded-lg mb-4 mx-4 overflow-hidden'>
+  <TouchableOpacity 
+    onPress={() => handleMemePress(item)}
+    activeOpacity={0.9}
+  >
+    <View className='bg-gray-800 rounded-xl overflow-hidden mx-4 mb-4 shadow-lg'>
       {/* Image */}
       <Image
         source={{ uri: item.imageUrl }}
-        className='w-full h-80'
+        className='w-full aspect-[4/5]' // Better than fixed h-80 for responsiveness
         resizeMode='cover'
       />
 
-      {/* Info Section */}
-      <View className='p-4'>
-        <Text className='text-white font-bold text-base mb-2' numberOfLines={2}>
+      {/* Content */}
+      <View className='p-4 pt-3'>
+        {/* Title */}
+        <Text 
+          className='text-white font-bold text-lg mb-3' 
+          numberOfLines={2}
+        >
           {item.title}
         </Text>
 
-        <View className='flex-row justify-between items-center'>
-          <View className='flex-row items-center'>
-            <Ionicons name="arrow-up" size={16} color="#a855f7" />
-            <Text className='text-gray-400 ml-1'>{item.ups}</Text>
-            <Text className='text-gray-500 ml-3'>by u/{item.author}</Text>
+        {/* Upvotes, Author, Subreddit */}
+        <View className='mb-4 mx-2 mt-2'>
+          <View className='flex-row items-center mb-1.5'>
+            <Ionicons name="arrow-up" size={18} color="#a855f7" />
+            <Text className='text-gray-300 ml-1.5 font-medium'>{item.ups}</Text>
+            <Text className='text-gray-400 ml-4'>by u/{item.author}</Text>
           </View>
 
-          <TouchableOpacity
-            onPress={() => handleSaveToFolder(item)}
-            className='bg-purple-500 px-4 py-2 rounded-lg flex-row items-center'
-          >
-            <Ionicons name="download-outline" size={18} color="white" />
-            <Text className='text-white ml-1 font-semibold'>Save</Text>
-          </TouchableOpacity>
+
+
+          <View className='flex-row items-center mb-1.5'>
+            <Ionicons name='logo-reddit' size={18} color="#a855f7"/>  
+            <Text className='text-gray-500 text-sm ml-2'>
+             
+              r/{MEME_SOURCES[selectedTab].subreddit}
+            </Text>
+          </View>
+         
         </View>
+
+        {/* Save Button */}
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            handleSaveToFolder(item);
+          }}
+          activeOpacity={0.8}
+          className='bg-purple-600 px-5 py-3 rounded-xl flex-row items-center justify-center'
+        >
+          <Ionicons name="download-outline" size={20} color="white" />
+          <Text className='text-white ml-2 font-semibold text-base'>Save</Text>
+        </TouchableOpacity>
       </View>
     </View>
-  );
+  </TouchableOpacity>
+);
 
   return (
     <SafeAreaView className='bg-primary flex-1'>
       {/* Header with Tabs */}
-      <View className='px-4 pt-4'>
+      <View className='px-4 pt-2'>
         <Text className='text-white text-3xl font-bold mb-4'>Discover Memes</Text>
 
-        {/* Tab Buttons */}
-        <View className='flex-row mb-4'>
-          {MEME_SOURCES.map((source, index) => (
+        {/* Tab Buttons - Horizontal Scroll */}
+        <FlatList
+          data={MEME_SOURCES}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(_, index) => index.toString()}
+          contentContainerStyle={{
+            paddingHorizontal: 8,
+            paddingVertical: 8,
+          }}
+          ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+          renderItem={({ item, index }) => (
             <TouchableOpacity
-              key={index}
               onPress={() => setSelectedTab(index)}
-              className={`flex-1 py-3 rounded-lg mr-2 ${
-                selectedTab === index ? 'bg-purple-500' : 'bg-gray-800'
-              }`}
+              style={[
+                {
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 12,
+                  backgroundColor: selectedTab === index ? '#a78bfa' : '#1f2937',
+                  minWidth: 100,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                },
+              ]}
+              activeOpacity={0.7}
             >
-              <Text className='text-white text-center font-semibold'>
-                {source.icon} {source.name}
+              <Text className="text-white text-center font-semibold">
+                {item.icon} {item.name}
               </Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          )}
+          style={{ marginBottom: 16 }}
+        />
       </View>
 
       {/* Meme Feed */}
@@ -127,6 +207,25 @@ const Discover = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Modals */}
+      <MemeDetailModal
+        visible={showDetailModal}
+        post={selectedPost}
+        onClose={() => setShowDetailModal(false)}
+        onSave={handleSaveFromDetail}
+      />
+      
+      <FolderSelectionModal
+        visible={showFolderModal}
+        onClose={() => setShowFolderModal(false)}
+        onSelectFolder={handleFolderSelect}
+        imageToSave={
+          selectedPost 
+            ? { id: selectedPost.id, imageUrl: selectedPost.imageUrl } 
+            : { id: '', imageUrl: '' }
+        }
+      />
     </SafeAreaView>
   );
 };

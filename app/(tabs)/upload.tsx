@@ -23,6 +23,7 @@ const Upload = () => {  // Component names should be PascalCase
     '#FFAAA5', // Coral
     '#A8E6CF', // Green
     '#FF8B94', // Pink
+     "#a855f7",
   ];
 
   // Pick multiple images
@@ -68,7 +69,12 @@ const Upload = () => {  // Component names should be PascalCase
     }
 
     // Create folder
-    addFolder(folderName, selectedColor);
+    const success = addFolder(folderName, selectedColor); 
+
+    if (!success) {
+    // Folder creation failed (limit reached)
+    return;  // 👈 Stop here, don't add images or show success
+    }
 
     // Add images to folder if any selected
     if (selectedImages.length > 0) {
