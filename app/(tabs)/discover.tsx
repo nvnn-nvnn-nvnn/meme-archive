@@ -81,6 +81,7 @@ const Discover = () => {
   <TouchableOpacity 
     onPress={() => handleMemePress(item)}
     activeOpacity={0.9}
+  
   >
     <View className='bg-gray-800 rounded-xl overflow-hidden mx-4 mb-4 shadow-lg'>
       {/* Image */}
@@ -127,7 +128,7 @@ const Discover = () => {
             handleSaveToFolder(item);
           }}
           activeOpacity={0.8}
-          className='bg-purple-600 px-5 py-3 rounded-xl flex-row items-center justify-center'
+          className='bg-purple-600 px-5 py-3 flex-row items-center justify-center  rounded-tl-md rounded-br-md'
         >
           <Ionicons name="download-outline" size={20} color="white" />
           <Text className='text-white ml-2 font-semibold text-base'>Save</Text>

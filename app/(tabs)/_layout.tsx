@@ -21,7 +21,9 @@ export default function TabsLayout() {
             
           </TouchableOpacity>
           {/* Space */}
-          <TouchableOpacity className='p-2  '>
+          <TouchableOpacity className='p-2  '
+          onPress={() => router.push('/settings')}
+          >
             <Ionicons name="settings-outline" size={40} color="#9CA3AF" />
           </TouchableOpacity>
 

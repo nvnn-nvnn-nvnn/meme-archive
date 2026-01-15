@@ -21,6 +21,24 @@ export default function RootLayout() {
 
             }}
           />
+
+
+          <Stack.Screen
+            // Renders app/settings/index.tsx (access via /settings)
+            name="settings"
+            options={{
+              headerShown: false,
+            }}
+          />
+
+
+          <Stack.Screen 
+            name="settings/[id]" 
+            options={({ route }: { route?: { params?: { title?: string } } }) => ({
+              title: route?.params?.title || 'Settings',
+              presentation: 'card',
+            })}
+          />
         </Stack>
       </FoldersProvider>
     </GestureHandlerRootView>

@@ -7,7 +7,7 @@ const SearchBar = ({ value, onChangeText }) => {
     <View className='flex-row items-center bg-gray-800 rounded-full px-5 py-4'>
       <Ionicons name="search" size={20} color="#C77DFF" />
       <TextInput
-        placeholder='Search folders...'
+        placeholder='Search '
         placeholderTextColor="#a8b5db"
         className='flex-1 ml-2 text-white'
         value={value}

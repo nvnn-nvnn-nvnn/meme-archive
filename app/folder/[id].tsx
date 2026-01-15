@@ -105,7 +105,7 @@ const Details = () => {
 
     try {
 
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
     if (status !== 'granted') {
       Alert.alert('Error', "Access wasn't granted!" )
       return;
@@ -135,7 +135,7 @@ const Details = () => {
 
     try{
 
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (status !== 'granted') {
         Alert.alert('Error', "Access wasn't granted!" )
         return;
@@ -501,11 +501,11 @@ const Details = () => {
 
 
         <View
-        className='flex-1 bg-black/70 justify-center items-center'
+        className='flex-1 bg-black/70 justify-center items-center '
         
         >
           <View 
-          className='bg-gray-800 p-6 rounded-2xl w-[85%]'
+          className='bg-gray-800 p-6 rounded-2xl w-[85%] border-2 border-[#a855f7] '
           >
 
 
