@@ -3,10 +3,12 @@ import { useRouter } from "expo-router";
 import { useState } from 'react';
 import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
+
 import EmptyState from "@/components/EmptyState";
 import FolderCard from "@/components/FolderCard";
 import { useFolders } from "@/components/FoldersContext";
 import SearchBar from "@/components/SearchBar";
+
 
 export default function Index() {
   const { folders, removeFolder, addFolderColor, changeName } = useFolders();

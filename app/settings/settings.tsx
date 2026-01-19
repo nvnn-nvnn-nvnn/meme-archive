@@ -193,7 +193,8 @@ export default function Settings() {
               <AppearanceModalContent onClose={closeModal} />
             )}
             {modalType === 'language' && (
-              <Text className="text-white text-lg">Language selector coming soon</Text>
+              <Text className="text-white text-lg">English / Spanish</Text>
+              
             )}
             {modalType === 'accessibility' && (
               <Text className="text-white text-lg">Accessibility options</Text>

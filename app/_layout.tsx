@@ -25,6 +25,15 @@ export default function RootLayout() {
 
           <Stack.Screen
             // Renders app/settings/index.tsx (access via /settings)
+            name="settings/index"
+            options={{
+              headerShown: false,
+            }}
+          />
+
+          
+          <Stack.Screen
+            // Renders app/settings/index.tsx (access via /settings)
             name="settings"
             options={{
               headerShown: false,
@@ -37,6 +46,7 @@ export default function RootLayout() {
             options={({ route }: { route?: { params?: { title?: string } } }) => ({
               title: route?.params?.title || 'Settings',
               presentation: 'card',
+              headerShown: false,
             })}
           />
         </Stack>
