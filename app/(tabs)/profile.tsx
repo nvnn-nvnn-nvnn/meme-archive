@@ -1,31 +1,70 @@
 import { useFolders } from "@/components/FoldersContext";
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
-import { Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-
-
 const Profile = () => {
-
   const [userName, setUserName] = useState('');
-  const [profileImage, setProfileImage] = useState(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempUserName, setTempUserName] = useState('');
+  const [memberSince, setMemberSince] = useState('');
 
+  const { user } = useAuth();
+  const { folders } = useFolders();
+  const { signOut } = useAuth();
 
-  const { folders } = useFolders()
+  useEffect(() => {
+    if (!user) return;
 
-    console.log("All folder keys:", Object.keys(folders));
+    const loadProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error loading profile:', error);
+          return;
+        }
+
+        if (data) {
+          setUserName(data.username || '');
+          setProfileImage(data.profile_image_url ?? null);
+
+          const dateString = data.member_since || data.created_at;
+          if (dateString) {
+            const date = new Date(dateString);
+            const formatted = date.toLocaleDateString('en-US', {
+              month: 'long',
+              year: 'numeric',
+            });
+            setMemberSince(formatted);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading profile:', e);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  console.log("All folder keys:", Object.keys(folders));
   console.log("Does Favorites exist?", folders['Favorites']);
   console.log("Favorites images:", folders['Favorites']?.images);
 
   const folderCount = Object.keys(folders).length
 
   const totalPhotos = Object.values(folders).reduce((total, folder) => {
-  return total + folder.images.length
-}, 0)
+    return total + folder.images.length
+  }, 0)
 
   const totalFavorites = Object.values(folders).reduce((total, folder) => {
     return total + folder.images.filter(img => img.isFavorite).length
@@ -49,7 +88,25 @@ const Profile = () => {
     });
 
     if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      setProfileImage(uri);
+
+      if (user) {
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ profile_image_url: uri })
+            .eq('id', user.id);
+
+          if (error) {
+            console.error('Error saving profile image:', error);
+            Alert.alert('Error', 'Failed to save profile image');
+          }
+        } catch (e) {
+          console.error('Error saving profile image:', e);
+          Alert.alert('Error', 'Failed to save profile image');
+        }
+      }
     }
   };
 
@@ -58,9 +115,34 @@ const Profile = () => {
     setIsEditingName(true);
   };
 
-  const handleSaveName = () => {
-    setUserName(tempUserName);
-    setIsEditingName(false);
+  const handleSaveName = async () => {
+    if (!tempUserName.trim()) {
+      Alert.alert('Error', 'Username cannot be empty');
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: tempUserName })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error saving username:', error);
+        Alert.alert('Error', 'Failed to update username');
+        return;
+      }
+
+      setUserName(tempUserName);
+      setIsEditingName(false);
+    } catch (e) {
+      console.error('Error saving username:', e);
+      Alert.alert('Error', 'Failed to update username');
+    }
   };
 
   const handleCancelEdit = () => {
@@ -68,8 +150,7 @@ const Profile = () => {
     setIsEditingName(false);
   };
 
-
-   return (
+  return (
     <SafeAreaView className='bg-primary flex-1'>
       <ScrollView
         className='flex-1'
@@ -78,7 +159,7 @@ const Profile = () => {
         <View className='flex-1 items-center justify-center border-2 border-purple-500 rounded-lg'>
           <TouchableOpacity onPress={pickImage} style={styles.profileContainer}>
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+              <Image source={{ uri: profileImage as string }} style={styles.profileImage} />
             ) : (
               <View style={styles.placeholderContainer}>
                 <Ionicons name="person-outline" size={55} color="white" />
@@ -147,7 +228,9 @@ const Profile = () => {
           {/* Member Since */}
            <View className='mt-5 items-center'>
             <Text className='text-white text-lg'>Member Since:</Text>
-            <Text className='text-[#a855f7] font-bold'>October 2025</Text>
+            <Text className='text-[#a855f7] font-bold'>
+              {memberSince || 'Not set'}
+            </Text>
           </View>
 
           <View className='mt-2  border-purple-500 rounded-lg items-center'>
@@ -171,6 +254,36 @@ const Profile = () => {
               
              <Ionicons  name="heart-outline" size={20} color="#a855f7" style={{ marginLeft: 8 }} />  
             </Text>
+
+
+            <TouchableOpacity
+            onPress={signOut}
+            
+            >
+              <View 
+             
+              className='
+              bg-accent
+              rounded-lg
+              p-4
+              mb-4
+              mt-5
+            
+              flex-row 
+              items-center 
+              justify-center
+              
+              '
+              
+              
+              >
+
+                <Text className="color-white     ">
+                  Logout
+                </Text>
+
+              </View>
+            </TouchableOpacity>
           </View>
         {/* Favorites Folder */}
           {/* <View className='mt-4 w-4/5'>

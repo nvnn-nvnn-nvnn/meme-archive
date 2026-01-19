@@ -58,9 +58,12 @@
           "photosPermission": "Allow MemeAresenal to access your photos.",
           "savePhotosPermission": "Allow MemeAresenal to save photos.",
           "isAccessMediaLocationEnabled": true,
-          "granularPermissions": ["photo"]
+          "granularPermissions": [
+            "photo"
+          ]
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
