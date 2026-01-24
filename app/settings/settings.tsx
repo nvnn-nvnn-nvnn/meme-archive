@@ -58,6 +58,18 @@ const settingsData: SettingsSection[] = [
       { id: 'acknowledgements', title: 'Acknowledgements', icon: 'heart-outline' },
     ],
   },
+
+  {
+    title: 'Policies',
+    items: [
+      { id: 'privacy-policy', title: 'Privacy Policy', icon: 'lock-closed-outline' },
+      { id: 'MemeAresenal-rules', title: ' Meme Arsenal Rules', icon: 'clipboard-outline' },
+      { id: 'user-agreement', title: 'User Agreement', icon: 'checkmark-circle-outline'}
+
+    ],
+  },
+  
+
   {
     title: 'Credits',
     items: [{ id: 'credits', title: 'Credits', icon: 'newspaper-outline' }],
@@ -97,6 +109,9 @@ export default function Settings() {
   const [searchQuery, setSearchQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<string | null>(null);
+  const [updatedEmail,setUpdatedEmail] = useState('')
+
+
 
   const query = searchQuery.trim().toLowerCase();
 
@@ -110,7 +125,7 @@ export default function Settings() {
     .filter(section => section.items.length > 0);
 
   const handleItemPress = (item: SettingsItem) => {
-    const modalItems = ['email', 'appearance', 'language', 'accessibility'];
+    const modalItems = [ 'appearance', 'language', 'accessibility'];
 
     if (modalItems.includes(item.id)) {
       setModalType(item.id);
@@ -188,7 +203,7 @@ export default function Settings() {
       >
         <View className="flex-1 justify-center items-center bg-black/60">
           <View className="bg-gray-900 rounded-2xl p-6 w-[90%] max-w-md border border-gray-700">
-            {modalType === 'email' && <EmailModalContent onClose={closeModal} />}
+            {/* {modalType === 'email' && <EmailModalContent onClose={closeModal} />} */}
             {modalType === 'appearance' && (
               <AppearanceModalContent onClose={closeModal} />
             )}

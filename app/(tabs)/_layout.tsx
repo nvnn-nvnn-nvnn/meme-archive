@@ -32,7 +32,7 @@ export default function TabsLayout() {
        
       </View>
               
-        <View className="flex-1 w-full h-full mb-10 ">
+        <View className="flex-1 w-full h-full mb-2 ">
           <Tabs
           screenOptions={{
             headerShown: false,
@@ -54,7 +54,7 @@ export default function TabsLayout() {
           <Tabs.Screen
             name="index"
             options={{
-              title: 'Home',
+              title: 'Archive',
               tabBarIcon: ({ color, size }) => (
                 <Ionicons name="home" size={size || 24} color={color} />
               ),
@@ -78,6 +78,20 @@ export default function TabsLayout() {
               ),
             }}
           />
+
+
+          <Tabs.Screen
+            name="Search"
+            options={{
+              title: 'Search',
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="search-outline" size={size || 24} color={color} />
+              ),
+            }}
+          />
+
+
+
           <Tabs.Screen
             name="profile"
             options={{
@@ -87,6 +101,8 @@ export default function TabsLayout() {
               ),
             }}
           />
+
+   
 
     
 

@@ -1,7 +1,9 @@
 import FolderSelectionModal from '@/components/FolderSelectionModal';
 import MemeDetailModal from '@/components/MemeDetailModal'; // Fixed typo: 'DetaiModal' → 'DetailModal'
+import SearchBar from '@/components/SearchBar';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   FlatList,
@@ -15,13 +17,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchRedditMemes, RedditPost } from '../../utils/redditAPI';
 
 const MEME_SOURCES = [
-  { name: 'Dank Memes', subreddit: 'dankmemes', icon: '🔥' },
-  { name: 'Wholesome', subreddit: 'wholesomememes', icon: '💖' },
-  { name: 'Classic', subreddit: 'memes', icon: '😂' },
+  { name: 'Dank Memes', subreddit: 'dankmemes', icon: '🐸' },
+  { name: 'Wholesome', subreddit: 'wholesomememes', icon: '🥰' },
+  { name: 'Classic', subreddit: 'memes', icon: '😱' },
   { name: 'Reaction', subreddit: 'reactionmemes', icon: '👀' },
   { name: 'Couple Memes', subreddit: 'couplememes', icon: '💑' },
-  { name: 'Relationship Memes', subreddit: 'RelationshipMemes', icon: '😙' },
-  { name: 'Neo-Nazi Memes', subreddit: 'ForwardsFromKlandma', icon: '卐' }
+  { name: 'Relationship Memes', subreddit: 'RelationshipMemes', icon: '😍' },
+  { name: 'Neo-Nazi Memes', subreddit: 'ForwardsFromKlandma', icon: '⚡' },
+ 
 ];
 
 const Discover = () => {
@@ -30,28 +33,58 @@ const Discover = () => {
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+  const [subSearch, setSubSearch] = useState('');
+
   // State for modals
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<RedditPost | null>(null);
 
-  // Load memes when tab changes
-  useEffect(() => {
-    loadMemes();
-  }, [selectedTab]);
+  const isSearching = subSearch.trim().length > 0;
 
-  const loadMemes = async () => {
-    setLoading(true);
-    const subreddit = MEME_SOURCES[selectedTab].subreddit;
-    const fetchedPosts = await fetchRedditMemes(subreddit, 25);
-    setPosts(fetchedPosts);
-    setLoading(false);
-  };
+  const memeSources = isSearching
+    ? [
+        ...MEME_SOURCES,
+        { name: subSearch.trim(), subreddit: subSearch.trim(), icon: '\ud83d\udd0d' },
+      ]
+    : MEME_SOURCES;
+
+  const safeSelectedTab = Math.min(selectedTab, memeSources.length - 1);
+  const selectedSource = memeSources[safeSelectedTab];
+  const selectedSubreddit = selectedSource.subreddit;
+
+  useEffect(() => {
+    if (selectedTab >= memeSources.length) {
+      setSelectedTab(0);
+    }
+  }, [selectedTab, memeSources.length]);
+
+  const loadMemes = useCallback(
+    async (subreddit: string) => {
+      console.log('Discover/loadMemes -> fetching subreddit:', subreddit);
+      setLoading(true);
+      const fetchedPosts = await fetchRedditMemes(subreddit, 30);
+      setPosts(fetchedPosts);
+      console.log('Discover/loadMemes -> posts fetched:', fetchedPosts.length);
+      setLoading(false);
+    },
+    []
+  );
+
+  // When searching, automatically focus the search tab (last tab in the list)
+  useEffect(() => {
+    if (isSearching) {
+      setSelectedTab(memeSources.length - 1);
+    }
+  }, [isSearching, memeSources.length]);
+
+  useEffect(() => {
+    loadMemes(selectedSubreddit);
+  }, [loadMemes, selectedSubreddit]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMemes();
+    await loadMemes(selectedSubreddit);
     setRefreshing(false);
   };
 
@@ -114,8 +147,7 @@ const Discover = () => {
           <View className='flex-row items-center mb-1.5'>
             <Ionicons name='logo-reddit' size={18} color="#a855f7"/>  
             <Text className='text-gray-500 text-sm ml-2'>
-             
-              r/{MEME_SOURCES[selectedTab].subreddit}
+              r/{selectedSubreddit}
             </Text>
           </View>
          
@@ -140,13 +172,22 @@ const Discover = () => {
 
   return (
     <SafeAreaView className='bg-primary flex-1'>
+
+      <View className="w-full px-5 pt-4 mb-4">
+        <SearchBar 
+          onChangeText={setSubSearch}
+          value={subSearch}
+
+        
+        />
+      </View>
       {/* Header with Tabs */}
       <View className='px-4 pt-2'>
         <Text className='text-white text-3xl font-bold mb-4'>Discover Memes</Text>
 
         {/* Tab Buttons - Horizontal Scroll */}
         <FlatList
-          data={MEME_SOURCES}
+          data={memeSources}
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(_, index) => index.toString()}
@@ -172,7 +213,10 @@ const Discover = () => {
               activeOpacity={0.7}
             >
               <Text className="text-white text-center font-semibold">
-                {item.icon} {item.name}
+                {item.icon}{' '}
+                {isSearching && index === memeSources.length - 1
+                  ? `r/${item.name}`
+                  : item.name}
               </Text>
             </TouchableOpacity>
           )}

@@ -39,7 +39,7 @@ const FolderSelectionModal = ({
     .filter(id => id !== 'Favorites')
     .map(id => ({
       id: id,
-      name: id,
+      name: folders[id].name,
       color: folders[id].color,
       imageCount: folders[id].images.length
     }));
@@ -95,7 +95,7 @@ const FolderSelectionModal = ({
     // Provide feedback
     Alert.alert(
       'Saved!',
-      `Meme saved to "${folderId}"`,
+      `Meme saved to "${folder.name}"`,
       [{ text: 'OK', onPress: onClose }]
     );
   };

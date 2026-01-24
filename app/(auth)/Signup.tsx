@@ -1,20 +1,19 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
@@ -24,7 +23,7 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const { signUp } = useAuth();
 
   const handleSignUp = async () => {
@@ -47,7 +46,7 @@ export default function SignUp() {
     setLoading(true);
     try {
       const { error } = await signUp(email, password, username);
-      
+
       if (error) {
         Alert.alert('Sign Up Failed', error.message);
       } else {
@@ -72,8 +71,9 @@ export default function SignUp() {
   return (
     <SafeAreaView className="flex-1 bg-primary">
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+        behavior={Platform.OS === 'android' ? 'padding' : undefined}
+        keyboardVerticalOffset={0} // ← tweak to 10-30 if you notice offset issues later
+        style={{ flex: 1 }}
       >
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}

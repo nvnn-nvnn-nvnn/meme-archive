@@ -36,7 +36,7 @@ export default function Index() {
     // .filter(id => id !== 'Favorites')
     .map(id => ({
       id: id,
-      name: id,
+      name: folders[id].name,
       imageCount: folders[id].images.length,
       color: folders[id].color
     }));

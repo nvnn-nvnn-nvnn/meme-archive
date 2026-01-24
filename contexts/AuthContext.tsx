@@ -103,8 +103,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .insert([
             {
               id: data.user.id,
-              username,
-              email,
+              username: username,
+              // email,
               created_at: new Date().toISOString(),
             },
           ]);
@@ -139,6 +139,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return { error };
     }
   };
+
+// Manual Implementation 
+
+  const profilePicture = async() => {
+
+    try{
+
+    } catch (error) {
+      console.error('Failed to save profile picture', error);
+    }
+
+  };
+
+
+
+
+
+
 
   const value = {
     user,

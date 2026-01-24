@@ -56,25 +56,22 @@ const Upload = () => {  // Component names should be PascalCase
   };
   
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     // Validation
     if (!folderName.trim()) {
       Alert.alert('Error', 'Please enter a folder name');
       return;
     }
 
-    if (folders[folderName]) {
-      Alert.alert('Error', 'Folder already exists');
-      return;
-    }
+    
 
-    // Create folder
-    const success = addFolder(folderName, selectedColor); 
+  const newFolderId = await addFolder(folderName.trim(), selectedColor);
 
-    if (!success) {
-    // Folder creation failed (limit reached)
-    return;  // 👈 Stop here, don't add images or show success
-    }
+  if (!newFolderId) {
+    // addFolder already showed alert for limit/error
+    return;
+  }
+
 
     // Add images to folder if any selected
     if (selectedImages.length > 0) {
@@ -84,12 +81,16 @@ const Upload = () => {  // Component names should be PascalCase
           imageUrl: asset.uri,
           isFavorite: false,
         };
-        addImage(folderName, newImage);
+        addImage(newFolderId, newImage);
       });
     }
 
     // Success feedback
-    Alert.alert('Success!', `Folder "${folderName}" created with ${selectedImages.length} images`);
+    Alert.alert(
+    'Success!',
+    `Folder "${folderName.trim()}" created with ${selectedImages.length} image(s)`
+    );
+
     
     // Clear form
     setFolderName('');

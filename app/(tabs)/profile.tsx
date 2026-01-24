@@ -18,43 +18,65 @@ const Profile = () => {
   const { folders } = useFolders();
   const { signOut } = useAuth();
 
-  useEffect(() => {
-    if (!user) return;
+ useEffect(() => {
+  if (!user) {
+    console.log('❌ No user found');
+    return;
+  }
 
-    const loadProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+  console.log('✅ User ID:', user.id);
 
-        if (error) {
-          console.error('Error loading profile:', error);
-          return;
-        }
+  const loadProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-        if (data) {
-          setUserName(data.username || '');
-          setProfileImage(data.profile_image_url ?? null);
+      console.log('📊 Full data object:', data);
+      console.log('📅 member_since value:', data?.member_since);
+      console.log('📅 created_at value:', data?.created_at);
+      console.log('📅 Type of member_since:', typeof data?.member_since);
+      console.log('📅 Type of created_at:', typeof data?.created_at);
 
-          const dateString = data.member_since || data.created_at;
-          if (dateString) {
-            const date = new Date(dateString);
-            const formatted = date.toLocaleDateString('en-US', {
-              month: 'long',
-              year: 'numeric',
-            });
-            setMemberSince(formatted);
-          }
-        }
-      } catch (e) {
-        console.error('Error loading profile:', e);
+      if (error) {
+        console.error('❌ Error loading profile:', error);
+        return;
       }
-    };
 
-    loadProfile();
-  }, [user]);
+      if (data) {
+        setUserName(data.username || '');
+        setProfileImage(data.profile_image_url ?? null);
+
+        const dateString = data.member_since || data.created_at;
+        console.log('🎯 Date string chosen:', dateString);
+        console.log('🎯 Is dateString truthy?', !!dateString);
+
+        if (dateString) {
+          const date = new Date(dateString);
+          console.log('📆 Date object:', date);
+          console.log('📆 Is valid date?', !isNaN(date.getTime()));
+          
+          const formatted = date.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          });
+          console.log('✨ Formatted result:', formatted);
+          setMemberSince(formatted);
+        } else {
+          console.log('⚠️ No date string found, setting "Not set"');
+          setMemberSince('Not set');
+        }
+      }
+    } catch (e) {
+      console.error('💥 Caught error:', e);
+    }
+  };
+
+  loadProfile();
+}, [user]);
+
 
   console.log("All folder keys:", Object.keys(folders));
   console.log("Does Favorites exist?", folders['Favorites']);
@@ -229,7 +251,7 @@ const Profile = () => {
            <View className='mt-5 items-center'>
             <Text className='text-white text-lg'>Member Since:</Text>
             <Text className='text-[#a855f7] font-bold'>
-              {memberSince || 'Not set'}
+              {memberSince || 'Not Set'}
             </Text>
           </View>
 

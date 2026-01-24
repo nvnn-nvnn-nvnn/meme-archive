@@ -13,12 +13,14 @@ import {
   FlatList,
   Image,
   Modal,
+  Switch,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { moderateScale } from 'react-native-size-matters';
 import EmptyFolder from '../../components/EmptyFolder';
 import { useFolders } from '../../components/FoldersContext';
 
@@ -32,6 +34,41 @@ export default function Details() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [gridKey, setGridKey] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isPublic, setIsPublic] = useState(false); // ← Default is PRIVATE
+
+
+
+  // const togglePublic = () => setIsPublic(prev => !prev);
+
+  const handleToggle = (nextValue: boolean) => {
+    // nextValue = what the switch wants to become
+    const goingToPublic = nextValue; // true = trying to make public
+
+    Alert.alert(
+      goingToPublic ? "Make Folder Public?" : "Make Folder Private?",
+      goingToPublic
+        ? "This folder will become visible to everyone.\nAre you sure?"
+        : "This folder will become private again.\nAre you sure?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel", // makes it look like cancel on iOS
+          // nothing happens when cancel
+        },
+        {
+          text: goingToPublic ? "Make Public" : "Make Private",
+          style: goingToPublic ? "default" : "destructive", // red on dangerous actions (iOS)
+          onPress: () => {
+            setIsPublic(nextValue); // only here we actually change the state
+          },
+        },
+      ],
+      { cancelable: true } // allow tapping outside to dismiss (Android)
+    );
+  };
+
+
+
 
   const { folders, addImage, toggleFavorite, removeImage, reorderImages } = useFolders();
   const folder = folders[id];
@@ -94,18 +131,27 @@ export default function Details() {
 
   const handleDownload = async () => {
     try {
+      const current = images[currentIndex];
+      if (!current) return;
+
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Denied', "Couldn't access photo library");
         return;
       }
 
-      const imageUrl = images[currentIndex].imageUrl;
-      const fileName = `meme_${Date.now()}.jpg`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const imageUrl = current.imageUrl;
+      let localUri = imageUrl;
 
-      const { uri } = await FileSystem.downloadAsync(imageUrl, fileUri);
-      await MediaLibrary.createAssetAsync(uri);
+      if (imageUrl.startsWith('http')) {
+        const fileName = `meme_${Date.now()}.jpg`;
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+        const { uri } = await FileSystem.downloadAsync(imageUrl, fileUri);
+        localUri = uri;
+      }
+
+      await MediaLibrary.createAssetAsync(localUri);
 
       Alert.alert('Success!', 'Meme saved to Photos');
     } catch (error) {
@@ -116,17 +162,19 @@ export default function Details() {
 
   const handleShareOptions = async () => {
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', "Couldn't access photo library");
-        return;
+      const current = images[currentIndex];
+      if (!current) return;
+
+      const imageUrl = current.imageUrl;
+      let localUri = imageUrl;
+
+      if (imageUrl.startsWith('http')) {
+        const fileName = `meme_${Date.now()}.jpg`;
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+        const { uri } = await FileSystem.downloadAsync(imageUrl, fileUri);
+        localUri = uri;
       }
-
-      const imageUrl = images[currentIndex].imageUrl;
-      const fileName = `meme_${Date.now()}.jpg`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-
-      const { uri } = await FileSystem.downloadAsync(imageUrl, fileUri);
 
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
@@ -134,7 +182,7 @@ export default function Details() {
         return;
       }
 
-      await Sharing.shareAsync(uri);
+      await Sharing.shareAsync(localUri);
       setShowShareModal(false);
     } catch (error) {
       console.error('Share error:', error);
@@ -239,10 +287,35 @@ export default function Details() {
     <SafeAreaView className="flex-1 bg-primary" edges={['right', 'bottom', 'left']}>
       <StatusBar style="light" backgroundColor="transparent" translucent />
 
-      <View className="flex-1">
+      <View className="flex-1 mt-20">
         {/* Header */}
         <View className="px-4 pt-4 pb-2">
           <Text className="text-white text-2xl font-bold">{name}</Text>
+          {/* Set Private/Public Folder */}
+
+
+          <View className="flex-row items-center gap-3">
+            <Text className="text-gray-300 text-2xl">
+              {isPublic ? 'Public' : 'Private'}
+            </Text>
+
+            <Switch
+              trackColor={{ false: '#767577', true: '#a855f7' }}  // purple when on
+              thumbColor={isPublic ? '#ffffff' : '#f4f3f4'}
+              ios_backgroundColor="#3e3e3e"
+              onValueChange={handleToggle}
+              value={isPublic}
+              style={{
+                transform: [{ scale: moderateScale(1.2) }],  // ← 1.4–1.6 feels good; test on device
+              }}
+            />
+          </View>
+
+
+
+
+
+
           <Text className="text-gray-400 mt-1">
             {images.length} meme{images.length !== 1 ? 's' : ''} • {remainingSlots} slots left
           </Text>

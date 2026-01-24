@@ -1,23 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import { supabase } from '../../lib/supabase';
+
+import { useAuth } from '@/contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SettingsDetail() {
   const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
 
+
+
   const renderContent = () => {
     switch (id) {
       case 'profile':
         return <ProfileContent />;
+      case 'email':
+        return <EmailContent/>
       case 'password':
         return <PasswordContent />;
       case 'cloud':
@@ -32,6 +40,8 @@ export default function SettingsDetail() {
         return <NotificationsContent />;
       case 'support':
         return <SupportContent />;
+      case 'privacy-policy':
+        return <PrivacyPolicyContent/>;
       case 'acknowledgements':
         return <AcknowledgementsContent />;
       case 'credits':
@@ -65,14 +75,72 @@ export default function SettingsDetail() {
 
 // ── Content Components ───────────────────────────────────────────
 
-const ProfileContent = () => (
-  <View>
+const ProfileContent = () => {
+
+
+  const { user } = useAuth();
+
+ const [profileData, setProfileData] = useState<{ username: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      setError("Not logged in");
+      return;
+    }
+
+    const loadProfile = async () => {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Profile fetch error:', error.message);
+        setError(error.message);
+      } else if (data) {
+        setProfileData(data);
+      } else {
+        // No row found → common on first login
+        console.log('No profile row exists yet for user:', user.id);
+        setProfileData({ username: '' }); // or show a message
+      }
+
+      setLoading(false);
+    };
+
+    loadProfile();
+  }, [user]);
+
+  // ────────────────────────────────────────────────
+  // Render different states
+  // ────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <Text className="text-white text-center py-10">Loading profile...</Text>
+    );
+  }
+
+  if (error) {
+    return (
+      <Text className="text-red-400 text-center py-10">{error}</Text>
+    );
+  }
+
+  return ( <View>
     <Text className="text-white text-lg font-semibold mb-4">
       Profile Information
     </Text>
     
     <View className="mb-4">
-      <Text className="text-gray-400 mb-2">Full Name</Text>
+      <Text className="text-gray-400 mb-2">Preferred Name</Text>
       <TextInput
         className="bg-gray-800 text-white p-3 rounded-lg"
         placeholder="Enter your name"
@@ -84,8 +152,10 @@ const ProfileContent = () => (
       <Text className="text-gray-400 mb-2">Username</Text>
       <TextInput
         className="bg-gray-800 text-white p-3 rounded-lg"
-        placeholder="Enter username"
+        // placeholder=""
         placeholderTextColor="#6B7280"
+        value={profileData ? profileData.username : ''} 
+        editable={false}
       />
     </View>
 
@@ -107,51 +177,368 @@ const ProfileContent = () => (
       </Text>
     </TouchableOpacity>
   </View>
-);
+  );
 
-const PasswordContent = () => (
-  <View>
-    <Text className="text-white text-lg font-semibold mb-4">
-      Change Password
-    </Text>
+ 
+};
 
-    <View className="mb-4">
-      <Text className="text-gray-400 mb-2">Current Password</Text>
-      <TextInput
-        className="bg-gray-800 text-white p-3 rounded-lg"
-        placeholder="Enter current password"
-        placeholderTextColor="#6B7280"
-        secureTextEntry
-      />
-    </View>
 
-    <View className="mb-4">
-      <Text className="text-gray-400 mb-2">New Password</Text>
-      <TextInput
-        className="bg-gray-800 text-white p-3 rounded-lg"
-        placeholder="Enter new password"
-        placeholderTextColor="#6B7280"
-        secureTextEntry
-      />
-    </View>
+// Email Content
+const EmailContent = () => {
+  const { user } = useAuth();
 
-    <View className="mb-4">
-      <Text className="text-gray-400 mb-2">Confirm New Password</Text>
-      <TextInput
-        className="bg-gray-800 text-white p-3 rounded-lg"
-        placeholder="Confirm new password"
-        placeholderTextColor="#6B7280"
-        secureTextEntry
-      />
-    </View>
+  const [updatedEmail, setUpdatedEmail] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // ← NEW: state for password
+  const [showPassword, setShowpassword] =useState(false);
 
-    <TouchableOpacity className="bg-purple-600 py-3 rounded-lg mt-4">
-      <Text className="text-white font-semibold text-center">
-        Update Password
+  const [isValidEmail, setIsValidEmail] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const validateEmail = (email: string) => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailPattern.test(email);
+  };
+
+  const handleEmailChange = (text: string) => {
+    setUpdatedEmail(text);
+    if (text.length > 0) {
+      setIsValidEmail(validateEmail(text));
+    } else {
+      setIsValidEmail(true);
+    }
+  };
+
+  const handleSave = async () => {
+    setError(null);
+    setSuccess(false);
+
+    if (!isValidEmail || updatedEmail.length === 0) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (!confirmPassword) {
+      setError('Please enter your current password to confirm');
+      return;
+    }
+
+    if (updatedEmail === user?.email) {
+      setError("This is already your current email");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // STEP 1: Re-authenticate with current password (refreshes session)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email!,
+        password: confirmPassword,
+      });
+
+      if (signInError) {
+        setError('Current password is incorrect');
+        setLoading(false);
+        return;
+      }
+
+      // STEP 2: Update email
+      const { error: updateError } = await supabase.auth.updateUser({
+        email: updatedEmail,
+      });
+
+      if (updateError) {
+        if (
+          updateError.message.includes('already registered') ||
+          updateError.message.includes('duplicate') ||
+          updateError.message.includes('taken')
+        ) {
+          setError('This email is already in use by another account.');
+        } else {
+          setError(updateError.message || 'Failed to update email');
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Success!
+      setSuccess(true);
+      Alert.alert(
+        'Success',
+        'Email updated! Please check your inbox to confirm the change.'
+      );
+
+      // Optional: clear fields
+      setUpdatedEmail('');
+      setConfirmPassword('');
+
+    } catch (err: any) {
+      console.error('Email change error:', err);
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View>
+      <Text className="text-white text-lg font-semibold mb-4">
+        Email Information
       </Text>
-    </TouchableOpacity>
-  </View>
-);
+
+      <View className="mb-4">
+        <Text className="text-gray-400 mb-3">Current Email:</Text>
+        <Text className="bg-gray-800 text-white p-3 rounded-lg text-gray-300">
+          {user?.email || 'Loading...'}
+        </Text>
+      </View>
+
+      <View className="mb-4">
+        <Text className="text-gray-400 mb-2">New Email</Text>
+        <TextInput
+          className={`p-3 rounded-lg ${
+            isValidEmail
+              ? 'bg-gray-800 text-white'
+              : 'bg-red-900/20 text-white border-2 border-red-500'
+          }`}
+          placeholder="Enter your new email address"
+          placeholderTextColor="#6B7280"
+          value={updatedEmail}
+          onChangeText={handleEmailChange}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {!isValidEmail && updatedEmail.length > 0 && (
+          <Text className="text-red-500 text-sm mt-1">
+            Please enter a valid email address
+          </Text>
+        )}
+      </View>
+
+        <View className="mb-4">
+        <Text className="text-gray-400 mb-2">Current Password</Text>
+        <View className="relative">
+          <TextInput
+            className="bg-gray-800 text-white p-4 rounded-xl pr-12"
+            placeholder="Enter current password"
+            placeholderTextColor="#6B7280"
+            secureTextEntry={!showPassword}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+          <TouchableOpacity
+            className="absolute right-4 top-1/2 -translate-y-1/2"
+            onPress={() => setShowpassword(!showPassword)}
+          >r
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={24}
+              color="#9CA3AF"
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {error && (
+        <Text className="text-red-500 text-center mb-4">{error}</Text>
+      )}
+
+      {success && (
+        <Text className="text-green-500 text-center mb-4">
+          Email updated successfully!
+        </Text>
+      )}
+
+      <TouchableOpacity
+        className={`bg-purple-600 py-4 rounded-xl ${loading ? 'opacity-60' : ''}`}
+        onPress={handleSave}
+        disabled={loading}
+      >
+        <Text className="text-white font-semibold text-center">
+          {loading ? 'Updating...' : 'Save Changes'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+
+
+const PasswordContent = () => {
+  const { user } = useAuth();
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [showNew, setShowNew] = useState(false);
+
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleChangePassword = async () => {
+    setError(null);
+    setSuccess(false);
+
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // STEP 1: Re-authenticate with current password (refreshes session)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email!,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        setError('Current password is incorrect');
+        setLoading(false);
+        return;
+      }
+
+      // STEP 2: Now session is fresh → safe to update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) throw updateError;
+
+      setSuccess(true);
+      Alert.alert('Success!', 'Your password has been changed');
+
+      // Clear fields
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+    } catch (err: any) {
+      console.error('Password change failed:', err);
+      setError(err.message || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View>
+      <Text className="text-white text-lg font-semibold mb-4">
+        Change Password
+      </Text>
+
+      {/* Current Password */}
+      <View className="mb-4">
+        <Text className="text-gray-400 mb-2">Current Password</Text>
+        <View className="relative">
+          <TextInput
+            className="bg-gray-800 text-white p-4 rounded-xl pr-12"
+            placeholder="Enter current password"
+            placeholderTextColor="#6B7280"
+            secureTextEntry={!showCurrent}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+          />
+          <TouchableOpacity
+            className="absolute right-4 top-1/2 -translate-y-1/2"
+            onPress={() => setShowCurrent(!showCurrent)}
+          >
+            <Ionicons
+              name={showCurrent ? "eye-off" : "eye"}
+              size={24}
+              color="#9CA3AF"
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* New Password */}
+      <View className="mb-4">
+        <Text className="text-gray-400 mb-2">New Password</Text>
+        <View className="relative">
+          <TextInput
+            className="bg-gray-800 text-white p-4 rounded-xl pr-12"
+            placeholder="Enter new password"
+            placeholderTextColor="#6B7280"
+            secureTextEntry={!showNew}
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+          <TouchableOpacity
+            className="absolute right-4 top-1/2 -translate-y-1/2"
+            onPress={() => setShowNew(!showNew)}
+          >
+            <Ionicons
+              name={showNew ? "eye-off" : "eye"}
+              size={24}
+              color="#9CA3AF"
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Confirm New Password */}
+      <View className="mb-6">
+        <Text className="text-gray-400 mb-2">Confirm New Password</Text>
+        <View className="relative">
+          <TextInput
+            className="bg-gray-800 text-white p-4 rounded-xl pr-12"
+            placeholder="Confirm new password"
+            placeholderTextColor="#6B7280"
+            secureTextEntry={!showConfirm}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+          <TouchableOpacity
+            className="absolute right-4 top-1/2 -translate-y-1/2"
+            onPress={() => setShowConfirm(!showConfirm)}
+          >
+            <Ionicons
+              name={showConfirm ? "eye-off" : "eye"}
+              size={24}
+              color="#9CA3AF"
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {error && (
+        <Text className="text-red-500 text-center mb-4">{error}</Text>
+      )}
+
+      {success && (
+        <Text className="text-green-500 text-center mb-4">
+          Password updated successfully!
+        </Text>
+      )}
+
+      <TouchableOpacity
+        className={`bg-purple-600 py-4 rounded-xl ${loading ? 'opacity-60' : ''}`}
+        onPress={handleChangePassword}
+        disabled={loading}
+      >
+        <Text className="text-white font-semibold text-center">
+          {loading ? 'Updating...' : 'Update Password'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+
 
 const CloudContent = () => (
   <View>
@@ -354,6 +741,49 @@ const AcknowledgementsContent = () => (
   </View>
 );
 
+// Policies
+
+const PrivacyPolicyContent = () => {
+
+
+  return(
+ <View>
+    <Text className="text-white text-lg font-semibold mb-4">
+      Active Subscriptions
+    </Text>
+
+    <View className="bg-gray-800 rounded-lg p-4 mb-4">
+      <Text className="text-white font-semibold mb-2">Premium Plan</Text>
+      <Text className="text-gray-400 mb-3">$9.99/month</Text>
+      <Text className="text-gray-400 text-sm mb-3">
+        Next billing date: Feb 15, 2026
+      </Text>
+      <TouchableOpacity className="bg-red-600/20 py-2 rounded-lg border border-red-600">
+        <Text className="text-red-400 text-center font-medium">
+          Cancel Subscription
+        </Text>
+      </TouchableOpacity>
+    </View>
+
+    <TouchableOpacity className="bg-purple-600/30 py-3 rounded-lg border border-purple-600">
+      <Text className="text-purple-300 font-semibold text-center">
+        Manage Billing
+      </Text>
+    </TouchableOpacity>
+  </View>
+
+  );
+
+};
+
+
+
+
+
+
+
+
+
 const CreditsContent = () => (
   <View>
     <Text className="text-white text-lg font-semibold mb-4">
@@ -362,18 +792,19 @@ const CreditsContent = () => (
 
     <View className="bg-gray-800 rounded-lg p-4 mb-4">
       <Text className="text-white font-semibold mb-2">Development Team</Text>
-      <Text className="text-gray-400">Built with ❤️ by your team</Text>
+      <Text className="text-gray-400">Built singlehandedly by Devan Lee</Text>
     </View>
 
     <View className="bg-gray-800 rounded-lg p-4 mb-4">
-      <Text className="text-white font-semibold mb-2">Version</Text>
+      <Text className="text-white font-semibold mb-2">Version 1.0.0</Text>
       <Text className="text-gray-400">1.0.0</Text>
     </View>
 
     <View className="bg-gray-800 rounded-lg p-4">
       <Text className="text-white font-semibold mb-2">Special Thanks</Text>
       <Text className="text-gray-400">
-        Thank you to all our users and contributors
+        Mom, Dad, and 
+        thank you to all our users and contributors
       </Text>
     </View>
   </View>

@@ -51,8 +51,12 @@ export default function RootLayout() {
            <Stack.Screen
               name="(auth)/Login"
               options={{ headerShown: false }}
-            />
+          />
 
+          <Stack.Screen
+              name="(auth)/Signup"
+              options={{ headerShown: false }}
+          />
             
           </Stack>
         </FoldersProvider>
