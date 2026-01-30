@@ -1,18 +1,20 @@
-import SearchBar from '@/components/SearchBar';
+import SearchUsersScreen, { UserSearchItem, Profile as SearchProfile } from '@/components/SearchUsersScreen';
+
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const Search = () => {
   const [userSearch, setUserSearch] = useState('');
-  const [users, setUsers] = useState([]); // Array of searched users
+  const [users, setUsers] = useState<SearchProfile[]>([]); // Array of searched users
+
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -24,9 +26,10 @@ const Search = () => {
       // setUsers(results);
       // For barebones, use placeholder data
       setUsers([
-        { id: '1', name: 'User One', handle: '@userone', followers: 1000, bio: 'Bio here' },
-        { id: '2', name: 'User Two', handle: '@usertwo', followers: 500, bio: 'Another bio' },
+        { id: '1', username: 'userone', avatar_url: null },
+        { id: '2', username: 'usertwo', avatar_url: null },
       ]);
+
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -40,33 +43,24 @@ const Search = () => {
     setRefreshing(false);
   };
 
-  const renderUserCard = ({ item }) => (
-    <TouchableOpacity 
-      onPress={() => console.log('View user profile:', item.handle)}
-      className='bg-gray-800 rounded-xl p-4 mb-4 flex-row items-center'
-    >
-      <View className='w-12 h-12 rounded-full bg-purple-600 mr-4' /> {/* Placeholder avatar */}
-      <View className='flex-1'>
-        <Text className='text-white font-bold text-lg'>{item.name}</Text>
-        <Text className='text-gray-400'>{item.handle}</Text>
-        <Text className='text-gray-500 mt-1' numberOfLines={2}>{item.bio}</Text>
-      </View>
-      <Text className='text-gray-400'>{item.followers} followers</Text>
-    </TouchableOpacity>
+  const renderUserCard = ({ item }: { item: SearchProfile }) => (
+    <UserSearchItem item={item} />
   );
 
   return (
-    <SafeAreaView className='bg-primary flex-1'>
+    <SafeAreaView className='bg-primary dark:bg-accent flex-1'>
       <View className="w-full px-5 pt-4 mb-4">
-        <SearchBar 
+        {/* <SearchBar 
           onChangeText={setUserSearch}
           value={userSearch}
           onSubmitEditing={handleSearch} // Search on enter
-        />
+        /> */}
+        <SearchUsersScreen onResults={setUsers} />
+
       </View>
 
       <View className='px-4 pt-2'>
-        <Text className='text-white text-3xl font-bold mb-4'>Search for Users</Text>
+        <Text className='text-textAlt dark:text-textDefault text-3xl font-bold mb-4'>Search for Users</Text>
       </View>
 
       {loading ? (
@@ -93,7 +87,7 @@ const Search = () => {
               </Text>
             </View>
           }
-          showsVerrticalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>

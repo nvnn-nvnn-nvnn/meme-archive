@@ -102,8 +102,8 @@ const Upload = () => {  // Component names should be PascalCase
 
 
   return (
-    <View className='bg-primary flex-1 p-5'>
-      <Text className='text-white text-2xl font-bold mb-6'>Create New Folder</Text>
+    <View className='bg-primary dark:bg-accent flex-1 p-5'>
+      <Text className='text-textAlt dark:text-textDefault text-2xl font-bold mb-6'>Create New Folder</Text>
 
       {/* Folder Name Input */}
       <TextInput
@@ -115,8 +115,8 @@ const Upload = () => {  // Component names should be PascalCase
       />
 
 
-       <View className="mb-4">
-        <Text className="text-white mb-2">Choose Folder Color:</Text>
+       <View className="mb-4 bg-gray-800/50 rounded-2xl p-6 border border-gray-700/50">
+        <Text className="text-white font-bold mb-2">Choose Folder Color:</Text>
         <View className="flex-row flex-wrap">
           {colorOptions.map((color) => (
             <TouchableOpacity
@@ -165,7 +165,7 @@ const Upload = () => {  // Component names should be PascalCase
         onPress={handleImagePicker}
       >
         <Ionicons name="images-outline" size={24} color="white" />
-        <Text className='text-white font-bold ml-2'>
+        <Text className='text-textAlt dark:text-textAlt font-bold ml-2'>
           Select Images ({selectedImages.length})
         </Text>
       </TouchableOpacity>

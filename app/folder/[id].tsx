@@ -1,12 +1,16 @@
+import FolderSelectionModal from '@/components/FolderSelectionModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -25,7 +29,7 @@ import EmptyFolder from '../../components/EmptyFolder';
 import { useFolders } from '../../components/FoldersContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const MAX_SLOTS = 10;
+const MAX_SLOTS = 40;
 
 export default function Details() {
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
@@ -34,45 +38,95 @@ export default function Details() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [gridKey, setGridKey] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
+  // Export Button
+  const [showExportModal, setShowExportModal] = useState(false);
+  // Folder Button
+  const [showFolderModal, setShowFolderModal] = useState(false);
+
+
+
+
+
+
   const [isPublic, setIsPublic] = useState(false); // ← Default is PRIVATE
 
+  // Folder auth/ownership
 
+  const [isOwner, setIsOwner] = useState(false);
+  const [publicImages, setPublicImages] = useState<any[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [imagesError, setImagesError] = useState<string | null>(null);
 
-  // const togglePublic = () => setIsPublic(prev => !prev);
+  const { user } = useAuth();
 
-  const handleToggle = (nextValue: boolean) => {
-    // nextValue = what the switch wants to become
-    const goingToPublic = nextValue; // true = trying to make public
+  // Auth check for folder owner + visibility
 
-    Alert.alert(
-      goingToPublic ? "Make Folder Public?" : "Make Folder Private?",
-      goingToPublic
-        ? "This folder will become visible to everyone.\nAre you sure?"
-        : "This folder will become private again.\nAre you sure?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel", // makes it look like cancel on iOS
-          // nothing happens when cancel
-        },
-        {
-          text: goingToPublic ? "Make Public" : "Make Private",
-          style: goingToPublic ? "default" : "destructive", // red on dangerous actions (iOS)
-          onPress: () => {
-            setIsPublic(nextValue); // only here we actually change the state
-          },
-        },
-      ],
-      { cancelable: true } // allow tapping outside to dismiss (Android)
-    );
-  };
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
 
+      (async () => {
+        const { data, error } = await supabase
+          .from('folders')
+          .select('user_id, is_public')
+          .eq('id', id)
+          .single();
 
+        if (!error && data) {
+          setIsPublic(!!data.is_public);
+          setIsOwner(!!user && data.user_id === user?.id);
+        }
+      })();
+    }, [id, user])
+  );
 
+  useEffect(() => {
+    if (!id) return;
+    if (isOwner) return; // owners rely on context images
+
+    if (!isPublic) {
+      setPublicImages([]);
+      return;
+    }
+
+    const fetchImages = async () => {
+      try {
+        setImagesLoading(true);
+        setImagesError(null);
+
+        const { data, error } = await supabase
+          .from('images')
+          .select('id, uri, is_favorite')
+          .eq('folder_id', id);
+
+        if (error) {
+          setImagesError(error.message);
+          setPublicImages([]);
+        } else {
+          setPublicImages(
+            (data || []).map((img: any) => ({
+              id: img.id,
+              imageUrl: img.uri,
+              isFavorite: img.is_favorite,
+            }))
+          );
+        }
+      } catch (err) {
+        setImagesError('Failed to load images');
+        setPublicImages([]);
+      } finally {
+        setImagesLoading(false);
+      }
+    };
+
+    fetchImages();
+  }, [id, isOwner, isPublic]);
 
   const { folders, addImage, toggleFavorite, removeImage, reorderImages } = useFolders();
   const folder = folders[id];
-  const images = Array.isArray(folder) ? folder : folder?.images || [];
+  const ownerImages = Array.isArray(folder) ? folder : folder?.images || [];
+
+  const images = isOwner ? ownerImages : publicImages;
 
   useEffect(() => {
     setGridKey((prev) => prev + 1);
@@ -94,7 +148,110 @@ export default function Details() {
     })),
   ];
 
+  const handleToggle = (nextValue: boolean) => {
+
+    if (!isOwner) {
+      Alert.alert("You don't have permission to change this folder's visibility.");
+      return;
+    }
+    
+    // nextValue = what the switch wants to become
+    const goingToPublic = nextValue; // true = trying to make public
+
+    Alert.alert(
+      goingToPublic ? "Make Folder Public?" : "Make Folder Private?",
+      goingToPublic
+        ? "This folder will become visible to everyone.\nAre you sure?"
+        : "This folder will become private again.\nAre you sure?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel", // makes it look like cancel on iOS
+          // nothing happens when cancel
+        },
+        {
+          text: goingToPublic ? "Make Public" : "Make Private",
+          style: goingToPublic ? "default" : "destructive", // red on dangerous actions (iOS)
+          onPress: async () => {
+            if (!user) {
+              Alert.alert('Error', 'You must be logged in');
+              return;
+            }
+
+            try{
+              setIsPublic(nextValue); // only here we actually change the state
+
+              // Saving to Supabase
+
+              const { error } = await supabase
+                .from('folders')
+                .update({ is_public: nextValue })
+                .eq('id', id)
+                .eq('user_id', user.id);
+
+
+              if (error) {
+                console.error('Falure to update folders visability', error);
+                Alert.alert("Error", "Could not update folder visibility");
+                setIsPublic(!nextValue);
+                return                
+              };
+
+
+
+            } catch (err) {
+              console.error(err);
+              Alert.alert("Error", "Something went wrong");
+              setIsPublic(!nextValue); // rollback
+            };
+          
+
+
+
+
+          },
+        },
+      ],
+      { cancelable: true } // allow tapping outside to dismiss (Android)
+    );
+  };
+
+
+
+
+  // const { folders, addImage, toggleFavorite, removeImage, reorderImages } = useFolders();
+  // const folder = folders[id];
+  // const ownerImages = Array.isArray(folder) ? folder : folder?.images || [];
+
+  // const images = isOwner ? ownerImages : publicImages;
+
+  // useEffect(() => {
+  //   setGridKey((prev) => prev + 1);
+  // }, [images.length]);
+
+  // const remainingSlots = MAX_SLOTS - images.length;
+
+  // const gridData = [
+  //   ...images.map((image, idx) => ({
+  //     type: 'image',
+  //     uri: image.imageUrl,
+  //     id: image.id,
+  //     isFavorite: image.isFavorite,
+  //     key: image.id || `img-${idx}`,
+  //   })),
+  //   ...Array(Math.max(0, remainingSlots)).fill(null).map((_, idx) => ({
+  //     type: 'empty',
+  //     key: `empty-${idx}`,
+  //   })),
+  // ];
+
   const handleAddImages = async () => {
+
+    if (!isOwner) {
+      Alert.alert("You don't have permission to add images to this folder.");
+      return;
+    }
+
     if (remainingSlots <= 0) {
       Alert.alert('Limit reached', `You can only add up to ${MAX_SLOTS} photos.`);
       return;
@@ -134,11 +291,11 @@ export default function Details() {
       const current = images[currentIndex];
       if (!current) return;
 
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', "Couldn't access photo library");
-        return;
-      }
+      // const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
+      // if (status !== 'granted') {
+      //   Alert.alert('Permission Denied', "Couldn't access photo library");
+      //   return;
+      // }
 
       const imageUrl = current.imageUrl;
       let localUri = imageUrl;
@@ -159,6 +316,39 @@ export default function Details() {
       Alert.alert('Error', 'Failed to save meme');
     }
   };
+
+
+  
+  const handleFolderSelect = (folderId: string) => {
+    console.log(`Saving post ${selectedPost?.id} to folder ${folderId}`);
+  };
+
+
+  const handleSaveToFolder = async () => {
+
+    try{
+
+      const current = images[currentIndex];
+      if (!current){
+        return
+      };
+      setShowFolderModal(true);
+
+
+    } catch (error){
+      console.error('Save to Folder error:', error);
+      Alert.alert('Error', 'Failed to Save to Folder');
+
+    }
+
+
+
+
+  }; 
+
+
+
+
 
   const handleShareOptions = async () => {
     try {
@@ -203,12 +393,19 @@ export default function Details() {
   };
 
   const handleRemoveImage = (imageId: string) => {
+
+
+    if (!isOwner){
+      Alert.alert("You don't have permission to remove images from this folder.");
+      return;
+    }
+
     Alert.alert('Remove meme?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
         style: 'destructive',
-        onPress: () => {
+        onPress: async() => {
           removeImage(id, imageId);
           Alert.alert('Removed!', 'Meme removed from folder.');
         },
@@ -284,31 +481,44 @@ export default function Details() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-primary" edges={['right', 'bottom', 'left']}>
+    <SafeAreaView className="flex-1 bg-primary dark:bg-accent" edges={['right', 'bottom', 'left']}>
       <StatusBar style="light" backgroundColor="transparent" translucent />
 
       <View className="flex-1 mt-20">
         {/* Header */}
         <View className="px-4 pt-4 pb-2">
-          <Text className="text-white text-2xl font-bold">{name}</Text>
+          <Text className="text-textAlt dark:text-textDefault text-2xl font-bold">{name}</Text>
           {/* Set Private/Public Folder */}
 
 
           <View className="flex-row items-center gap-3">
+
+
             <Text className="text-gray-300 text-2xl">
               {isPublic ? 'Public' : 'Private'}
             </Text>
 
-            <Switch
-              trackColor={{ false: '#767577', true: '#a855f7' }}  // purple when on
-              thumbColor={isPublic ? '#ffffff' : '#f4f3f4'}
-              ios_backgroundColor="#3e3e3e"
-              onValueChange={handleToggle}
-              value={isPublic}
-              style={{
-                transform: [{ scale: moderateScale(1.2) }],  // ← 1.4–1.6 feels good; test on device
-              }}
-            />
+
+
+            {isOwner && (
+
+              <Switch
+                trackColor={{ false: '#767577', true: '#a855f7' }}  // purple when on
+                thumbColor={isPublic ? '#ffffff' : '#f4f3f4'}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={handleToggle}
+                value={isPublic}
+                style={{
+                  transform: [{ scale: moderateScale(1.2) }],  // ← 1.4–1.6 feels good; test on device
+                }}
+              />
+            )}
+            
+            
+            
+            
+
+        
           </View>
 
 
@@ -346,22 +556,24 @@ export default function Details() {
               showsVerticalScrollIndicator={false}
             />
 
-            {/* Floating Add Button */}
-            <TouchableOpacity
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 p-4 active:opacity-70 z-10"
-              onPress={handleAddImages}
-              style={{
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 10,
-              }}
-            >
-              <View className="p-5 border-2 border-accent rounded-full bg-accent/20">
-                <Ionicons name="cloud-upload-outline" size={48} color="white" />
-              </View>
-            </TouchableOpacity>
+
+            {}  
+              {/* Floating Add Button */}
+              <TouchableOpacity
+                className="absolute bottom-8 left-1/2 -translate-x-1/2 p-4 active:opacity-70 z-10"
+                onPress={handleAddImages}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 10,
+                }}
+              >
+                <View className="p-5 border-2 border-accent rounded-full bg-accent/20">
+                  <Ionicons name="cloud-upload-outline" size={48} color="white" />
+                </View>
+              </TouchableOpacity>
           </View>
         )}
 
@@ -427,7 +639,11 @@ export default function Details() {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity className="items-center" onPress={handleDownload}>
+
+
+              {/* Export Button Information  */}
+
+              <TouchableOpacity className="items-center" onPress={() => setShowExportModal(true)}>
                 <Ionicons name="download-outline" size={32} color="white" />
                 <Text className="text-white text-xs mt-2">Export</Text>
               </TouchableOpacity>
@@ -466,6 +682,57 @@ export default function Details() {
             </View>
           </View>
         </Modal>
+
+        
+
+        {/* Export Modal */}
+        <Modal visible={showExportModal} transparent animationType="slide">
+            <View className="flex-1 bg-black/70 justify-center items-center">
+              <View className="bg-gray-800 p-6 rounded-2xl w-[85%] border-2 border-[#a855f7]">
+                <Text className="text-white text-xl font-bold mb-6 text-center">Export Meme</Text>
+
+                <TouchableOpacity
+                  onPress={handleDownload}
+                  className="bg-purple-500 p-4 rounded-lg mb-3 flex-row items-center justify-center"
+                >
+                  <Ionicons name="cloud-download-outline" size={24} color="white" />
+                  <Text className="text-white ml-3 font-semibold text-lg">Download Image to Phone</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleSaveToFolder}
+                  className="bg-gray-700 p-4 rounded-lg mb-3 flex-row items-center justify-center"
+                >
+                  <Ionicons name="folder-open-outline" size={24} color="white" />
+                  <Text className="text-white ml-3 font-semibold text-lg">Save Image to Folder</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setShowExportModal(false)}
+                  className="bg-gray-600 p-4 rounded-lg flex-row items-center justify-center"
+                >
+                  <Text className="text-white font-semibold text-lg">Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+
+
+        </Modal>
+
+        <FolderSelectionModal
+          visible={showFolderModal}
+          onClose={() => setShowFolderModal(false)}
+          onSelectFolder={handleFolderSelect}
+          imageToSave={
+            images[currentIndex] 
+              ? { id: images[currentIndex].id , imageUrl: images[currentIndex].imageUrl } 
+              : { id: '', imageUrl: '' }
+          }
+        />
+
+
+
       </View>
     </SafeAreaView>
   );

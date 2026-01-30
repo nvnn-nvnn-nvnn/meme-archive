@@ -9,13 +9,20 @@ import FolderCard from "@/components/FolderCard";
 import { useFolders } from "@/components/FoldersContext";
 import SearchBar from "@/components/SearchBar";
 
+type FolderItem = {
+  id: string;
+  name: string;
+  imageCount: number;
+  color: string;
+};
+
 
 export default function Index() {
   const { folders, removeFolder, addFolderColor, changeName } = useFolders();
   const [searchQuery, setSearchQuery] = useState("");
   
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [selectedFolder, setSelectedFolder] = useState<FolderItem | null>(null);
   const [tempFolderName, setTempFolderName] = useState('');
   const [tempFolderColor, setTempFolderColor] = useState('');
 
@@ -41,11 +48,11 @@ export default function Index() {
       color: folders[id].color
     }));
 
-  const filteredFolders = folderArray.filter(folder => 
+  const filteredFolders = folderArray.filter((folder: FolderItem) => 
     folder.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleFolderSettings = (folder) => {
+  const handleFolderSettings = (folder: FolderItem) => {
     setSelectedFolder(folder);
     setTempFolderName(folder.name);
     setTempFolderColor(folder.color);
@@ -82,7 +89,7 @@ export default function Index() {
     setShowSettingsModal(false);
   };
 
-  const handleDeleteFolder = (folder) => {
+  const handleDeleteFolder = (folder: FolderItem) => {
     Alert.alert(
       'Delete Folder?',
       `Are you sure you want to delete "${folder.name}"? All memes inside will be lost.`,
@@ -103,7 +110,7 @@ export default function Index() {
   const router = useRouter();
 
   return (
-    <View className="flex-1 bg-primary">
+    <View className="flex-1 bg-primary dark:bg-accent">
       <FlatList
         ListHeaderComponent={
           <View className="w-full px-5 pt-4 mb-4">
@@ -188,41 +195,34 @@ export default function Index() {
               </View>
             </View>
               
-         
+                  
+            {/* Hidden for beta: unfinished export actions (Save Folder to Phone / Share Folder) */}
+            {false && (
+              <View className='flex-row justify-between w-full mb-3'>
+                <TouchableOpacity
+                  className='bg-yellow-600 px-6 py-3 rounded-lg flex-1 mr-2'
+                >
+                  <Text className='text-white text-center font-bold'>
+                    Save Folder to Phone
+                  </Text>
+                </TouchableOpacity>
 
-         
-            <View className='flex-row justify-between w-full mb-3'>
-              {/* Save Folder to Phone */}
-
-              <TouchableOpacity
-              // onPress={}
-              className='bg-yellow-600 px-6 py-3 rounded-lg flex-1 mr-2'
-              >
-              <Text className='text-white text-center font-bold'>
-                Save Folder to Phone
-              </Text>
-
-            </TouchableOpacity>
-
-               {/* Export Folder Files */}
-            <TouchableOpacity
-              // onPress={}
-              className='bg-green-600 px-6 py-3 rounded-lg flex-1 ml-2'
-            >
-              <Text className='text-white text-center font-bold'>
-                Share Folder
-              </Text>
-
-            </TouchableOpacity>
-
-
-            </View>
+                <TouchableOpacity
+                  className='bg-green-600 px-6 py-3 rounded-lg flex-1 ml-2'
+                >
+                  <Text className='text-white text-center font-bold'>
+                    Share Folder
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
            
 
             {/* Delete Button */}
             <TouchableOpacity
               onPress={() => {
                 setShowSettingsModal(false);
+                if (!selectedFolder) return;
                 handleDeleteFolder(selectedFolder);
               }}
               className='bg-red-600 rounded-lg p-4 w-full mb-3 '

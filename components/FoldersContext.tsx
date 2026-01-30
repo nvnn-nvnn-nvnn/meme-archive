@@ -1,9 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+
 import { Alert } from 'react-native';
 import { useAuth } from '../contexts/AuthContext'; // adjust path if needed
-import { supabase } from '../lib/supabase'; // adjust path if needed
 import { uploadImageToSupabase } from '../lib/storage';
+import { supabase } from '../lib/supabase'; // adjust path if needed
 
 type Image = { id: string; imageUrl: string; isFavorite?: boolean };
 
@@ -19,13 +19,13 @@ type Folders = { [folderId: string]: Folder };
 
 interface FoldersContextProps {
   folders: Folders;
-  addFolder: (name: string, color?: string) => Promise<boolean>;
+  addFolder: (name: string, color?: string) => Promise<string | null>;
   addImage: (folderId: string, image: Image) => Promise<void>;
-  removeImage: (folderId: string, imageId: string) => void;
+  removeImage: (folderId: string, imageId: string) => Promise<void>;
   reorderImages: (folderId: string, newOrder: Image[]) => void;
   toggleFavorite: (folderId: string, imageId: string) => void;
   removeFolder: (folderId: string) => Promise<void>;
-  createFolder: (name: string, color?: string) => Promise<boolean>;
+  createFolder: (name: string, color?: string) => Promise<string | null>;
   addFolderColor: (folderId: string, color: string) => void;
   changeName: (folderId: string, newName: string) => Promise<void>;
 }
@@ -35,56 +35,6 @@ const FoldersContext = createContext<FoldersContextProps | undefined>(undefined)
 export const FoldersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [folders, setFolders] = useState<Folders>({});
-  
-
- const STORAGE_KEY = '@folders_data_v2'; // changed key so old broken data doesn't interfere
-
-// LOAD - runs once when provider mounts
-useEffect(() => {
-  const loadFromStorage = async () => {
-    console.log('[STORAGE] Starting load attempt');
-    try {
-      const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      console.log('[STORAGE] Raw value from AsyncStorage:', saved); // ← most important
-
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log('[STORAGE] Parsed folders keys:', Object.keys(parsed));
-        console.log('[STORAGE] First folder name example:', parsed[Object.keys(parsed)[0]]?.name);
-        setFolders(parsed);
-      } else {
-        console.log('[STORAGE] Nothing found in storage');
-      }
-    } catch (e) {
-      console.error('[STORAGE] Load crashed:', e);
-    }
-  };
-
-  loadFromStorage();
-}, []);
-
-// SAVE - runs when folders change (with debounce)
-useEffect(() => {
-  if (Object.keys(folders).length === 0) return; // skip empty
-
-  console.log('[STORAGE] Folders changed → scheduling save. Count:', Object.keys(folders).length);
-
-  const timeout = setTimeout(async () => {
-    try {
-      const json = JSON.stringify(folders);
-      console.log('[STORAGE] Stringified size (chars):', json.length);
-      await AsyncStorage.setItem(STORAGE_KEY, json);
-      console.log('[STORAGE] SAVE SUCCESSFUL');
-    } catch (e) {
-      console.error('[STORAGE] SAVE FAILED:', e);
-    }
-  }, 1000); // 1 second debounce
-
-  return () => clearTimeout(timeout);
-}, [folders]);
-
-
-
 
   // Load folders from Supabase when user logs in
   useEffect(() => {
@@ -153,7 +103,7 @@ useEffect(() => {
   const createFolder = async (name: string, color: string = '#a855f7') => {
     if (!user) {
       Alert.alert('Error', 'You must be logged in');
-      return false;
+      return null;
     }
 
     // Check limit in database
@@ -164,12 +114,12 @@ useEffect(() => {
 
     if (countError) {
       Alert.alert('Error', 'Could not check folder limit');
-      return false;
+      return null;
     }
 
     if ((count || 0) >= FOLDER_LIMIT) {
       Alert.alert('Folder Limit Reached', `You can only create ${FOLDER_LIMIT} folders.`);
-      return false;
+      return null;
     }
 
     // Create in Supabase
@@ -269,62 +219,84 @@ useEffect(() => {
     }));
   };
 
-  const removeFolder = async (folderId: string) => {
-    if (!user || folderId === 'Favorites') return;
-
-    const { error } = await supabase
-      .from('folders')
-      .delete()
-      .eq('id', folderId)
-      .eq('user_id', user.id);
-
-    if (error) {
-      Alert.alert('Error', 'Could not delete folder');
-      return;
-    }
-
-    setFolders(prev => {
-      const { [folderId]: _, ...rest } = prev;
-      return rest;
-    });
-  };
+ const removeFolder = async (folderId: string) => {
+  if (!user || folderId === 'Favorites') return;
+  // 1) Delete all images in this folder
+  const { error: imagesError } = await supabase
+    .from('images')
+    .delete()
+    .eq('folder_id', folderId)
+    .eq('user_id', user.id);
+  if (imagesError) {
+    console.error('Failed to delete folder images:', imagesError);
+    Alert.alert('Error', 'Could not delete folder images');
+    return;
+  }
+  // 2) Delete the folder itself
+  const { error: folderError } = await supabase
+    .from('folders')
+    .delete()
+    .eq('id', folderId)
+    .eq('user_id', user.id);
+  if (folderError) {
+    console.error('Failed to delete folder:', folderError);
+    Alert.alert('Error', 'Could not delete folder');
+    return;
+  }
+  // 3) Update local state
+  setFolders(prev => {
+    const { [folderId]: _, ...rest } = prev;
+    return rest;
+  });
+};
 
   // Keep your existing addImage, removeImage, reorderImages, toggleFavorite for now
   // (we'll add Supabase sync for images in the next step when you're ready)
 
- const addImage = async (folderId: string, image: Image) => {
+const addImage = async (folderId: string, image: Image) => {
   if (!user) return;
 
   let remoteUrl = image.imageUrl;
+  let fileSize: number | null = null;
 
   if (!remoteUrl.startsWith('http')) {
     try {
-      remoteUrl = await uploadImageToSupabase(user.id, image.imageUrl);
-    } catch (e) {
+      const { publicUrl, fileSize: size } = await uploadImageToSupabase(user.id, image.imageUrl);
+      remoteUrl = publicUrl;
+      fileSize = size;
+    } catch (e: any) {
       console.error('Image upload failed:', e);
-      Alert.alert('Error', 'Could not upload image');
+      const message = e?.message || 'Could not upload image';
+      Alert.alert('Error', message);
       return;
     }
   }
 
-  // Save to Supabase
-  const { error } = await supabase
+  // Save to Supabase and get the inserted row back, including file_size_bytes when known
+  const { data, error } = await supabase
     .from('images')
     .insert({
       user_id: user.id,
       folder_id: folderId,
-      uri: remoteUrl,          // or publicUrl from storage later
+      uri: remoteUrl,
       is_favorite: image.isFavorite ?? false,
-    });
+      ...(fileSize !== null ? { file_size_bytes: fileSize } : {}),
+    })
+    .select('id, uri, is_favorite')
+    .single();
 
-  if (error) {
+  if (error || !data) {
+    console.error('Supabase image insert failed:', error);
     Alert.alert('Error', 'Could not save image');
     return;
   }
 
-  const savedImage: Image = { ...image, imageUrl: remoteUrl };
+  const savedImage: Image = {
+    id: data.id,
+    imageUrl: data.uri,
+    isFavorite: data.is_favorite ?? false,
+  };
 
-  // Update local state
   setFolders(prev => {
     const folder = prev[folderId];
     if (!folder) return prev;
@@ -338,20 +310,37 @@ useEffect(() => {
   });
 };
 
-  const removeImage = (folderId: string, imageId: string) => {
-    setFolders(prev => {
-      const folder = prev[folderId];
-      if (!folder) return prev;
-      
-      return {
-        ...prev,
-        [folderId]: {
-          ...folder,
-          images: folder.images.filter(img => img.id !== imageId)
-        }
-      };
-    });
-  };
+
+
+const removeImage = async (folderId: string, imageId: string) => {
+  if (!user) return;
+  // First delete from Supabase
+  const { error } = await supabase
+    .from('images')
+    .delete()
+    .eq('id', imageId)
+    .eq('user_id', user.id);
+  if (error) {
+    console.error('Failed to delete image from Supabase:', error);
+    Alert.alert('Error', 'Could not delete image');
+    return;
+  }
+  // Then update local state
+  setFolders(prev => {
+    const folder = prev[folderId];
+    if (!folder) return prev;
+    return {
+      ...prev,
+      [folderId]: {
+        ...folder,
+        images: folder.images.filter(img => img.id !== imageId),
+      },
+    };
+  });
+};
+
+
+
 
   const reorderImages = (folderId: string, newOrder: Image[]) => {
     setFolders(prev => {

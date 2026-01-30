@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,43 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// username Check
+
+function validateUsername(username: string): { isValid: boolean; error?: string } {
+  if (typeof username !== 'string') {
+    return { isValid: false, error: 'Invalid input' };
+  }
+
+  const trimmed = username.trim();
+
+  if (trimmed.length === 0) {
+    return { isValid: false, error: 'Username is required' };
+  }
+
+  if (trimmed.length < 3) {
+    return { isValid: false, error: 'Username must be at least 3 characters' };
+  }
+
+  if (trimmed.length > 20) {
+    return { isValid: false, error: 'Username must be 20 characters or fewer' };
+  }
+
+  // Starts with letter, then letters/numbers/_/-
+  const pattern = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+
+  if (!pattern.test(trimmed)) {
+    if (trimmed.includes(' ')) {
+      return { isValid: false, error: 'Username cannot contain spaces' };
+    }
+    return {
+      isValid: false,
+      error: 'Only letters, numbers, underscores (_) and hyphens (-) allowed. Must start with a letter.',
+    };
+  }
+
+  return { isValid: true };
+}
+
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +62,21 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { signUp } = useAuth();
+
+  // Real-time username validation
+  const usernameValidation = useMemo(
+    () => validateUsername(username),
+    [username]
+  );
+
+  const isFormValid = useMemo(() => {
+    return (
+      usernameValidation.isValid &&
+      email.trim() !== '' &&
+      password.length >= 6 &&
+      password === confirmPassword
+    );
+  }, [usernameValidation.isValid, email, password, confirmPassword]);
 
   const handleSignUp = async () => {
     // Validation
@@ -43,9 +95,19 @@ export default function SignUp() {
       return;
     }
 
+    // Username check cases
+
+    const unameCheck = validateUsername(username);
+
+    if (!unameCheck.isValid) {
+      Alert.alert('Invalid Username', unameCheck.error);
+      return;
+    }
+
     setLoading(true);
+
     try {
-      const { error } = await signUp(email, password, username);
+      const { error } = await signUp(email.trim(), password, username.trim());
 
       if (error) {
         Alert.alert('Sign Up Failed', error.message);
@@ -61,15 +123,16 @@ export default function SignUp() {
           ]
         );
       }
-    } catch (err) {
-      Alert.alert('Error', 'An unexpected error occurred');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
 
+
   return (
-    <SafeAreaView className="flex-1 bg-primary">
+    <SafeAreaView className="flex-1 bg-primary dark:bg-accent">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'android' ? 'padding' : undefined}
         keyboardVerticalOffset={0} // ← tweak to 10-30 if you notice offset issues later

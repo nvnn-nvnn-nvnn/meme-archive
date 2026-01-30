@@ -9,10 +9,10 @@ export default function TabsLayout() {
   const router = useRouter();
   return (
     
-      <View className="flex-1 bg-primary items-center ">
+      <View className="flex-1 bg-primary dark:bg-accent items-center ">
 
       <View className="flex-row items-center justify-between w-full px-5 pt-10">
-        <Text className="text-2xl text-white font-bold">MemeArsenal</Text>
+        <Text className="text-2xl text-textAlt dark:text-textDefault font-bold">MemeArsenal</Text>
 
         <View className='flex-row items-center gap-2'>
           <TouchableOpacity className='p-2'

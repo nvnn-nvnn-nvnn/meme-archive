@@ -60,9 +60,8 @@ export default function Login() {
         }}
       />
 
-      <SafeAreaView className="flex-1 bg-primary"> {/* bg-primary = dark bg */}
+      <SafeAreaView className="flex-1 bg-primary dark:bg-accent"> {/* bg-primary = dark bg */}
         <KeyboardAvoidingView
-          
           behavior={Platform.OS === 'android' ? 'padding' : 'height'}
           className="flex-1"
         >

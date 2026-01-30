@@ -1,11 +1,22 @@
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import "../global.css";
+import { useEffect } from 'react';
+import { useColorScheme } from 'nativewind';
 
 import { FoldersProvider } from "../components/FoldersContext";
 import { AuthProvider } from "../contexts/AuthContext";
 
 export default function RootLayout() {
+  const { setColorScheme } = useColorScheme();
+
+  // Ensure LIGHT mode is the default theme on app start.
+  // Users can still switch to dark mode from Appearance settings
+  // for the duration of the session.
+  useEffect(() => {
+    setColorScheme('light');
+  }, [setColorScheme]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
@@ -17,6 +28,14 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="folder/[id]"
+              options={{ 
+                headerShown: false,
+                presentation: 'card'
+              }}
+            />
+
+            <Stack.Screen
+              name="user/[id]"
               options={{ 
                 headerShown: false,
                 presentation: 'card'

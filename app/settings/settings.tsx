@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -94,9 +94,17 @@ const EmailModalContent = ({ onClose }: { onClose: () => void }) => (
 );
 
 const AppearanceModalContent = ({ onClose }: { onClose: () => void }) => (
-  <View>
+  <View className='items-center'>
     <Text className="text-white text-xl font-bold mb-4">Appearance</Text>
+
+    <View className='border-2 border-white '>
+     
+    </View>
+
     <Text className="text-gray-300">Choose theme: Light / Dark / System</Text>
+
+
+    
     {/* Toggle buttons or picker */}
     <TouchableOpacity onPress={onClose} className="mt-6">
       <Text className="text-purple-400 text-center">Close</Text>
@@ -125,7 +133,7 @@ export default function Settings() {
     .filter(section => section.items.length > 0);
 
   const handleItemPress = (item: SettingsItem) => {
-    const modalItems = [ 'appearance', 'language', 'accessibility'];
+    const modalItems = [  'language', 'accessibility'];
 
     if (modalItems.includes(item.id)) {
       setModalType(item.id);
@@ -145,9 +153,10 @@ export default function Settings() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-primary">
+    <SafeAreaView className="flex-1 bg-primary dark:bg-accent">
       <View className="px-5 pt-4 mb-4">
-        <Text className="text-white text-2xl font-bold mb-4 text-center">
+
+        <Text className="text-textAlt dark:text-textDefault text-2xl font-bold mb-4 text-center">
           Settings
         </Text>
 
@@ -161,14 +170,14 @@ export default function Settings() {
       <ScrollView className="flex-1 px-5">
         {filteredSettings.length === 0 && query ? (
           <View className="flex-1 items-center justify-center py-10">
-            <Text className="text-gray-400 text-lg">
+            <Text className="text-textDefault text-lg">
               No settings found for {searchQuery}
             </Text>
           </View>
         ) : (
           filteredSettings.map(section => (
             <View key={section.title} className="mb-6">
-              <Text className="text-gray-400 text-lg font-semibold mb-3 px-2">
+              <Text className="text-textAlt text-lg font-semibold mb-3 px-2">
                 {section.title}
               </Text>
 
@@ -204,15 +213,17 @@ export default function Settings() {
         <View className="flex-1 justify-center items-center bg-black/60">
           <View className="bg-gray-900 rounded-2xl p-6 w-[90%] max-w-md border border-gray-700">
             {/* {modalType === 'email' && <EmailModalContent onClose={closeModal} />} */}
-            {modalType === 'appearance' && (
+            {/* {modalType === 'appearance' && (
               <AppearanceModalContent onClose={closeModal} />
-            )}
+            )} */}
             {modalType === 'language' && (
-              <Text className="text-white text-lg">English / Spanish</Text>
+              <Text className="text-white text-lg">English / Spanish | Work in Progress</Text>
               
             )}
             {modalType === 'accessibility' && (
-              <Text className="text-white text-lg">Accessibility options</Text>
+              <Text className="text-white text-lg">Accessibility options | Work in Progress</Text>
+
+            
             )}
 
             {/* Common close button if content doesn't have one */}

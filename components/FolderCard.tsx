@@ -5,6 +5,9 @@ import { Text, TouchableOpacity, View } from 'react-native'
 
 const FolderCard = ({ folder, folderColor, onLongPress }) => {
   const router = useRouter();
+  const MAX_SLOTS = 40;
+
+  const remainingSlots = MAX_SLOTS - folder.imageCount;
   
   // Add safety checks
   if (!folder) return null;
@@ -46,7 +49,8 @@ const FolderCard = ({ folder, folderColor, onLongPress }) => {
         {folder.imageCount !== undefined && folder.imageCount > 0 && (
           <View className="absolute bottom-3 px-2 py-1 rounded-full bg-gray-900/80">
             <Text className="text-gray-300 text-xs">
-              {folder.imageCount} {folder.imageCount !== 1 ? 'images' : 'image'}
+              {remainingSlots} {remainingSlots !==1 ? 'images': 'image'} remaining!
+              {/* {folder.imageCount} {folder.imageCount !== 1 ? 'images' : 'image'} */}
             </Text>
           </View>
         )}
